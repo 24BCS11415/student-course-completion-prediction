@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Student Completion Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #0f2244;
+    --navy-mid: #1a3560;
+    --sky: #4a90d9;
+    --sky-dim: #e8f1fb;
+    --graduate: #1d6e4a;
+    --graduate-bg: #e8f5ee;
+    --dropout: #9b2335;
+    --dropout-bg: #faeaec;
+    --surface: #ffffff;
+    --bg: #f3f5f8;
+    --line: #dde2ea;
+    --text: #1a2540;
+    --muted: #6b7a96;
+    --radius: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #c5d8f5; --navy-mid: #a8c4ef; --sky: #6aabf7; --sky-dim: #1a2f4a;
+      --graduate: #4caf7d; --graduate-bg: #0d2e1e; --dropout: #e05a6a; --dropout-bg: #2e0d12;
+      --surface: #111827; --bg: #0d1421; --line: #1f2d42; --text: #e0e8f5; --muted: #7a8fac;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+  header { background: var(--navy); color: #fff; padding: 0 2rem; }
+  .header-inner { max-width: 1100px; margin: 0 auto; padding: 1.5rem 0; display: flex; align-items: center; gap: 1rem; }
+  .logo-mark { width: 40px; height: 40px; background: var(--sky); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+  .header-title h1 { font-family: 'DM Serif Display', serif; font-size: 1.3rem; font-weight: 400; line-height: 1.2; }
+  .header-title p { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; }
+  .header-status { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; opacity: 0.8; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #f87171; transition: background .3s; }
+  .status-dot.online { background: #6ee7a0; }
+  .status-dot.checking { background: #fbbf24; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+  main { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem 4rem; }
+
+  .conn-banner { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .conn-banner .url-row { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 260px; flex-wrap: wrap; }
+  .conn-banner label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .conn-banner input { flex: 1; min-width: 200px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0.45rem 0.75rem; font-family: monospace; font-size: 0.85rem; background: var(--bg); color: var(--text); outline: none; }
+  .conn-banner input:focus { border-color: var(--sky); }
+  .conn-hint { width: 100%; margin-top: 0.6rem; font-size: 0.78rem; color: var(--muted); background: var(--bg); border-radius: 4px; padding: 0.6rem 0.85rem; display: none; }
+  .conn-hint code { font-family: monospace; background: var(--line); padding: 1px 5px; border-radius: 3px; }
+  .conn-hint.visible { display: block; }
+
+  .btn-sm { padding: 0.45rem 1rem; border: none; border-radius: var(--radius); font-size: 0.82rem; font-family: 'Inter', sans-serif; font-weight: 600; cursor: pointer; background: var(--sky); color: #fff; white-space: nowrap; transition: opacity .15s; }
+  .btn-sm:hover { opacity: .85; }
+  .btn-sm.secondary { background: var(--bg); color: var(--text); border: 1px solid var(--line); }
+
+  .model-strip { display: flex; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .model-strip-item { font-size: 0.82rem; color: var(--muted); }
+  .model-strip-item strong { color: var(--text); font-weight: 600; display: block; font-size: 0.95rem; }
+
+  .tabs { display: flex; border-bottom: 2px solid var(--line); margin-bottom: 2rem; }
+  .tab-btn { background: none; border: none; padding: 0.75rem 1.25rem; font-size: 0.88rem; font-family: 'Inter', sans-serif; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s, border-color .15s; }
+  .tab-btn.active { color: var(--sky); border-bottom-color: var(--sky); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .section-heading { font-family: 'DM Serif Display', serif; font-size: 1.35rem; font-weight: 400; color: var(--navy); margin-bottom: 1.25rem; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+  .field-group { display: flex; flex-direction: column; gap: 0.35rem; }
+  .field-group label { font-size: 0.78rem; font-weight: 500; color: var(--muted); }
+  .field-group input { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-family: 'Inter', sans-serif; font-size: 0.88rem; background: var(--surface); color: var(--text); outline: none; transition: border-color .15s; }
+  .field-group input:focus { border-color: var(--sky); }
+
+  .submit-row { margin-top: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .btn-primary { padding: 0.65rem 1.75rem; background: var(--navy); color: #fff; border: none; border-radius: var(--radius); font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background .15s; }
+  .btn-primary:hover { background: var(--navy-mid); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+  .spin { display: none; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .alert { padding: 0.85rem 1.1rem; border-radius: var(--radius); font-size: 0.85rem; margin-top: 1rem; display: none; white-space: pre-wrap; font-family: monospace; }
+  .alert.error { background: var(--dropout-bg); color: var(--dropout); border: 1px solid #e8b3b8; }
+
+  .result-card { margin-top: 1.75rem; border-radius: var(--radius); padding: 1.5rem; border: 1px solid var(--line); border-left-width: 4px; border-left-color: var(--sky); background: var(--surface); display: none; }
+  .result-card.graduate { border-left-color: var(--graduate); }
+  .result-card.dropout  { border-left-color: var(--dropout); }
+  .result-verdict { font-family: 'DM Serif Display', serif; font-size: 1.6rem; font-weight: 400; line-height: 1.2; margin-bottom: 0.3rem; }
+  .result-verdict.graduate { color: var(--graduate); }
+  .result-verdict.dropout  { color: var(--dropout); }
+  .result-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.25rem; }
+  .prob-bars { display: flex; flex-direction: column; gap: 0.75rem; }
+  .prob-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.83rem; }
+  .prob-label { width: 90px; color: var(--muted); }
+  .prob-track { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .prob-fill.graduate { background: var(--graduate); }
+  .prob-fill.dropout  { background: var(--dropout); }
+  .prob-pct { width: 44px; text-align: right; font-weight: 600; }
+  .risk-badge { display: inline-block; margin-top: 1.25rem; padding: 0.3rem 0.85rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+  .risk-low  { background: var(--graduate-bg); color: var(--graduate); }
+  .risk-med  { background: #fff7e6; color: #7a5000; }
+  .risk-high { background: var(--dropout-bg); color: var(--dropout); }
+
+  .batch-area textarea { width: 100%; min-height: 220px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1rem; font-family: monospace; font-size: 0.82rem; background: var(--surface); color: var(--text); resize: vertical; outline: none; }
+  .batch-area textarea:focus { border-color: var(--sky); }
+  .batch-results-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 1.25rem; }
+  .batch-results-table th { background: var(--bg); padding: 0.6rem 0.85rem; text-align: left; color: var(--muted); font-weight: 500; border-bottom: 2px solid var(--line); font-size: 0.78rem; }
+  .batch-results-table td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); }
+  .badge { display: inline-block; padding: 0.18rem 0.6rem; border-radius: 12px; font-size: 0.76rem; font-weight: 600; }
+  .badge.graduate { background: var(--graduate-bg); color: var(--graduate); }
+  .badge.dropout  { background: var(--dropout-bg); color: var(--dropout); }
+
+  .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+  .endpoint-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.25rem; }
+  .method { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .method.get  { background: #dff0d8; color: #2d6a1a; }
+  .method.post { background: #dce9fc; color: #174ea6; }
+  .endpoint-card .path { font-family: monospace; font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+  .endpoint-card .desc { font-size: 0.82rem; color: var(--muted); }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; font-size: 0.8rem; overflow-x: auto; color: var(--text); line-height: 1.7; }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header-status { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-mark">🎓</div>
+    <div class="header-title">
+      <h1>Student Completion Predictor</h1>
+      <p>Dropout &amp; graduation risk — UCI dataset ML model</p>
+    </div>
+    <div class="header-status">
+      <div class="status-dot checking" id="statusDot"></div>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="conn-banner">
+    <div class="url-row">
+      <label>API URL</label>
+      <input type="text" id="apiBase" value="http://localhost:8000" />
+      <button class="btn-sm secondary" onclick="connect()">Connect</button>
+    </div>
+    <div class="conn-hint" id="connHint"></div>
+  </div>
+
+  <div class="model-strip">
+    <div class="model-strip-item"><strong id="infoTask">—</strong>Task</div>
+    <div class="model-strip-item"><strong id="infoClasses">—</strong>Classes</div>
+    <div class="model-strip-item"><strong id="infoFeatures">—</strong>Features</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('single',this)">Single prediction</button>
+    <button class="tab-btn" onclick="switchTab('batch',this)">Batch prediction</button>
+    <button class="tab-btn" onclick="switchTab('docs',this)">API reference</button>
+  </div>
+
+  <!-- Single -->
+  <div class="tab-panel active" id="panel-single">
+    <div class="section-heading">Student profile</div>
+    <div class="form-grid" id="formGrid">
+      <p style="color:var(--muted);font-size:.85rem;grid-column:1/-1">Connect to the API above to load the feature form.</p>
+    </div>
+    <div class="submit-row">
+      <button class="btn-primary" id="predictBtn" onclick="runPredict()" disabled>
+        <span class="spin" id="predictSpin"></span>Predict
+      </button>
+      <button class="btn-sm secondary" onclick="fillExample()">Fill example</button>
+      <button class="btn-sm secondary" onclick="clearForm()">Clear</button>
+    </div>
+    <div class="alert error" id="singleError"></div>
+    <div class="result-card" id="resultCard">
+      <div class="result-verdict" id="resultVerdict"></div>
+      <div class="result-sub" id="resultSub"></div>
+      <div class="prob-bars" id="probBars"></div>
+      <div id="riskBadge"></div>
+    </div>
+  </div>
+
+  <!-- Batch -->
+  <div class="tab-panel" id="panel-batch">
+    <div class="section-heading">Batch prediction</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem;">Paste a JSON array of student objects.</p>
+    <div class="batch-area">
+      <textarea id="batchInput" placeholder='[ { "Marital status": 1, ... }, ... ]'></textarea>
+    </div>
+    <div class="submit-row">
+      <button class="btn-primary" id="batchBtn" onclick="runBatch()">
+        <span class="spin" id="batchSpin"></span>Run batch
+      </button>
+      <button class="btn-sm secondary" onclick="fillBatchExample()">Load example</button>
+    </div>
+    <div class="alert error" id="batchError"></div>
+    <div id="batchResults"></div>
+  </div>
+
+  <!-- Docs -->
+  <div class="tab-panel" id="panel-docs">
+    <div class="section-heading">API endpoints</div>
+    <div class="docs-grid">
+      <div class="endpoint-card"><span class="method get">GET</span><div class="path">/</div><div class="desc">Welcome message &amp; docs link.</div></div>
+      <div class="endpoint-card"><span class="method get">GET</span><div class="path">/health</div><div class="desc">Model load status.</div></div>
+      <div class="endpoint-card"><span class="method get">GET</span><div class="path">/model-info</div><div class="desc">Task type, class names, feature list.</div></div>
+      <div class="endpoint-card"><span class="method post">POST</span><div class="path">/predict</div><div class="desc">Single student prediction.</div></div>
+      <div class="endpoint-card"><span class="method post">POST</span><div class="path">/predict/batch</div><div class="desc">Array of students, one call.</div></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem;">POST /predict — request</p>
+    <pre id="docsReq">{ ... }</pre>
+    <p style="font-size:.82rem;color:var(--muted);margin:.9rem 0 .6rem;">POST /predict — response</p>
+    <pre>{ "prediction": "Graduate", "probabilities": { "Dropout": 0.1023, "Graduate": 0.8977 }, "ignored_extra_fields": [] }</pre>
+    <p style="font-size:.82rem;color:var(--muted);margin:.9rem 0 .6rem;">POST /predict/batch — response</p>
+    <pre>{ "count": 2, "results": [ { "prediction": "Graduate", ... }, { "prediction": "Dropout", ... } ] }</pre>
+  </div>
+
+</main>
+
+<script>
+let featureNames = [];
+let classNames   = [];
+
+function base() {
+  return document.getElementById('apiBase').value.replace(/\/+$/, '').trim();
+}
+
+async function connect() {
+  setStatus('checking', 'Connecting…');
+  hideHint();
+  const url = base();
+  const alt = url.includes('localhost')
+    ? url.replace('localhost', '127.0.0.1')
+    : url.replace('127.0.0.1', 'localhost');
+
+  let reached = await tryHealth(url);
+  if (!reached) reached = await tryHealth(alt, true);
+
+  if (!reached) {
+    setStatus('offline', 'Unreachable');
+    showHint(`Cannot reach the API. Steps to fix:<br><br>
+1. Make sure uvicorn is running: <code>uvicorn main:app --reload</code><br><br>
+2. Serve this HTML file via Python (do NOT open as file://): <code>python -m http.server 3000</code><br><br>
+3. Open <code>http://localhost:3000</code> in your browser.`);
+  }
+}
+
+async function tryHealth(url, switchIfOk = false) {
+  try {
+    const r = await fetch(url + '/health', { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return false;
+    const d = await r.json();
+    if (d.model_loaded) {
+      if (switchIfOk) document.getElementById('apiBase').value = url;
+      setStatus('online', 'Model loaded');
+      await loadModelInfo(url);
+      return true;
+    } else {
+      setStatus('offline', 'Model not loaded');
+      showHint('API reached but model_loaded is false. Make sure student_completion_model.joblib is in the same folder as main.py.');
+      return true;
+    }
+  } catch { return false; }
+}
+
+async function loadModelInfo(url) {
+  try {
+    const r = await fetch((url || base()) + '/model-info');
+    const d = await r.json();
+    featureNames = d.features || [];
+    classNames   = d.classes  || [];
+    document.getElementById('infoTask').textContent     = d.task || '—';
+    document.getElementById('infoClasses').textContent  = classNames.join(' / ') || '—';
+    document.getElementById('infoFeatures').textContent = featureNames.length || '—';
+    buildForm();
+    document.getElementById('predictBtn').disabled = false;
+    updateDocsExample();
+  } catch(e) { console.error('model-info failed', e); }
+}
+
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot' + (state === 'online' ? ' online' : state === 'checking' ? ' checking' : '');
+  document.getElementById('statusText').textContent = text;
+}
+function showHint(html) {
+  const h = document.getElementById('connHint');
+  h.innerHTML = html;
+  h.classList.add('visible');
+}
+function hideHint() { document.getElementById('connHint').classList.remove('visible'); }
+
+const NOMINAL = ["Marital status","Application mode","Course","Previous qualification",
+  "Nacionality","Nationality","Mother's qualification","Father's qualification",
+  "Mother's occupation","Father's occupation"];
+
+function buildForm() {
+  const grid = document.getElementById('formGrid');
+  grid.innerHTML = '';
+  featureNames.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field-group';
+    const lbl = document.createElement('label');
+    lbl.textContent = f;
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.id   = 'feat__' + f;
+    inp.step = NOMINAL.includes(f) ? '1' : 'any';
+    inp.placeholder = '0';
+    wrap.appendChild(lbl);
+    wrap.appendChild(inp);
+    grid.appendChild(wrap);
+  });
+}
+
+function getField(f) { return document.getElementById('feat__' + f); }
+
+function getFormData() {
+  const obj = {};
+  featureNames.forEach(f => {
+    const el = getField(f);
+    obj[f] = el ? (parseFloat(el.value) || 0) : 0;
+  });
+  return obj;
+}
+
+function clearForm() {
+  featureNames.forEach(f => { const el = getField(f); if (el) el.value = ''; });
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('singleError').style.display = 'none';
+}
+
+const EXAMPLE = {
+  "Marital status":1,"Application mode":1,"Application order":1,"Course":33,
+  "Daytime/evening attendance\t":1,"Previous qualification":1,
+  "Previous qualification (grade)":142,"Nacionality":1,
+  "Mother's qualification":19,"Father's qualification":12,
+  "Mother's occupation":5,"Father's occupation":10,
+  "Admission grade":127,"Displaced":0,"Educational special needs":0,
+  "Debtor":0,"Tuition fees up to date":1,"Gender":1,
+  "Scholarship holder":0,"Age at enrollment":19,"International":0,
+  "Curricular units 1st sem (credited)":0,"Curricular units 1st sem (enrolled)":6,
+  "Curricular units 1st sem (evaluations)":8,"Curricular units 1st sem (approved)":6,
+  "Curricular units 1st sem (grade)":13.4,"Curricular units 1st sem (without evaluations)":0,
+  "Curricular units 2nd sem (credited)":0,"Curricular units 2nd sem (enrolled)":6,
+  "Curricular units 2nd sem (evaluations)":9,"Curricular units 2nd sem (approved)":6,
+  "Curricular units 2nd sem (grade)":13.8,"Curricular units 2nd sem (without evaluations)":0,
+  "Unemployment rate":10.8,"Inflation rate":1.4,"GDP":1.74
+};
+
+function fillExample() {
+  featureNames.forEach(f => { const el = getField(f); if (el && EXAMPLE[f] !== undefined) el.value = EXAMPLE[f]; });
+}
+
+async function runPredict() {
+  const errEl = document.getElementById('singleError');
+  const card  = document.getElementById('resultCard');
+  const spin  = document.getElementById('predictSpin');
+  const btn   = document.getElementById('predictBtn');
+  errEl.style.display = 'none';
+  card.style.display  = 'none';
+  spin.style.display  = 'block';
+  btn.disabled = true;
+  try {
+    const r = await fetch(base() + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(getFormData())
+    });
+    const d = await r.json();
+    if (!r.ok) showErr(errEl, d.detail ? JSON.stringify(d.detail, null, 2) : r.statusText);
+    else showResult(d);
+  } catch(e) {
+    showErr(errEl, 'Could not reach ' + base() + '\n' + e.message);
+  } finally {
+    spin.style.display = 'none';
+    btn.disabled = false;
+  }
+}
+
+function showResult(d) {
+  const card    = document.getElementById('resultCard');
+  const verdict = document.getElementById('resultVerdict');
+  const sub     = document.getElementById('resultSub');
+  const barsEl  = document.getElementById('probBars');
+  const badgeEl = document.getElementById('riskBadge');
+  const pred    = d.prediction;
+  const probs   = d.probabilities || {};
+  const cls     = pred === 'Graduate' ? 'graduate' : 'dropout';
+  card.className = 'result-card ' + cls;
+  verdict.className = 'result-verdict ' + cls;
+  verdict.textContent = pred;
+  sub.textContent = 'Prediction based on ' + featureNames.length + ' features.';
+  barsEl.innerHTML = '';
+  Object.entries(probs).forEach(([name, p]) => {
+    const bc = name === 'Graduate' ? 'graduate' : 'dropout';
+    barsEl.innerHTML += `<div class="prob-row">
+      <span class="prob-label">${name}</span>
+      <div class="prob-track"><div class="prob-fill ${bc}" style="width:${(p*100).toFixed(1)}%"></div></div>
+      <span class="prob-pct">${(p*100).toFixed(1)}%</span></div>`;
+  });
+  const pGrad = probs['Graduate'] ?? (1 - (probs['Dropout'] ?? 0));
+  const [riskLabel, riskCls] = pGrad >= 0.7 ? ['Low dropout risk','risk-low']
+    : pGrad >= 0.3 ? ['Medium dropout risk','risk-med']
+    : ['High dropout risk','risk-high'];
+  badgeEl.innerHTML = `<span class="risk-badge ${riskCls}">${riskLabel}</span>`;
+  card.style.display = 'block';
+}
+
+function fillBatchExample() {
+  const dropout = { ...EXAMPLE, "Tuition fees up to date":0, "Debtor":1,
+    "Curricular units 2nd sem (approved)":0, "Curricular units 2nd sem (grade)":0 };
+  document.getElementById('batchInput').value = JSON.stringify([EXAMPLE, dropout], null, 2);
+}
+
+async function runBatch() {
+  const errEl = document.getElementById('batchError');
+  const resEl = document.getElementById('batchResults');
+  const spin  = document.getElementById('batchSpin');
+  const btn   = document.getElementById('batchBtn');
+  errEl.style.display = 'none';
+  resEl.innerHTML = '';
+  spin.style.display = 'block';
+  btn.disabled = true;
+  try {
+    let students;
+    try { students = JSON.parse(document.getElementById('batchInput').value.trim()); }
+    catch { throw new Error('Invalid JSON — check your array syntax.'); }
+    if (!Array.isArray(students)) throw new Error('Input must be a JSON array.');
+    const r = await fetch(base() + '/predict/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(students)
+    });
+    const d = await r.json();
+    if (!r.ok) showErr(errEl, d.detail ? JSON.stringify(d.detail, null, 2) : r.statusText);
+    else renderBatch(d);
+  } catch(e) { showErr(errEl, e.message); }
+  finally { spin.style.display = 'none'; btn.disabled = false; }
+}
+
+function renderBatch(d) {
+  const results = d.results || d.predictions || [];
+  if (!results.length) { document.getElementById('batchResults').innerHTML = '<p style="color:var(--muted);font-size:.85rem;margin-top:1rem;">No results returned.</p>'; return; }
+  const firstProbs = results[0].probabilities || {};
+  let html = `<p style="font-size:.82rem;color:var(--muted);margin-top:1rem;margin-bottom:.6rem;">${results.length} student${results.length>1?'s':''} processed</p>
+    <table class="batch-results-table"><thead><tr><th>#</th><th>Prediction</th>`;
+  Object.keys(firstProbs).forEach(k => { html += `<th>P(${k})</th>`; });
+  html += '</tr></thead><tbody>';
+  results.forEach((res, i) => {
+    const cls = res.prediction === 'Graduate' ? 'graduate' : 'dropout';
+    html += `<tr><td>${i+1}</td><td><span class="badge ${cls}">${res.prediction}</span></td>`;
+    Object.values(res.probabilities || {}).forEach(p => { html += `<td>${(p*100).toFixed(1)}%</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('batchResults').innerHTML = html;
+}
+
+function updateDocsExample() {
+  const sample = {};
+  featureNames.slice(0, 6).forEach(f => { sample[f] = EXAMPLE[f] ?? 0; });
+  if (featureNames.length > 6) sample['...'] = '(' + featureNames.length + ' features total)';
+  document.getElementById('docsReq').textContent = JSON.stringify(sample, null, 2);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+connect();
+</script>
+</body>
+</html>
